@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>さんかくを　ならべよう</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background-color: #e6f7ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    h2 {
+      margin-top: 5px;
+      margin-bottom: 0px;
+      color: #0055aa;
+    }
+
+    .main-wrapper {
+      display: flex;
+      margin-top: 10px;
+      align-items: flex-start;
+    }
+
+    #toolbox {
+      width: 140px;
+      background: #e6f2ff;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+      margin-right: 10px;
+    }
+
+    #rotateBtn {
+      margin-top: 10px;
+      padding: 6px 12px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      background-color: #e65c00;
+      color: white;
+      cursor: pointer;
+    }
+
+    #rightspace {
+  width: 80px; /* 必要に応じて調整 */
+  margin-left: 20px;
+}
+
+    canvas {
+      background: #ffffff;
+      touch-action: none;
+    }
+
+    #mainCanvas {
+      border: none;
+    }
+
+    footer {
+      margin-top: 5px;
+      font-size: 0.9em;
+      color: #888888;
+    }
+
+    #undoBtn, #resetBtn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #3399ff;
+  color: white;
+  cursor: pointer;
+}
+
+#howtoBtn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #ff9900;
+  color: white;
+  cursor: pointer;
+}
+
+.buttonspace {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* ボタン間に縦のすき間を追加（上下に8px） */
+}
+
+/* モーダル背景 */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.4);
+}
+
+/* モーダルの中身 */
+.modal-content {
+  background-color: #fff;
+  margin: 15% auto;
+  padding: 20px;
+  border-radius: 10px;
+  width: 80%;
+  max-width: 400px;
+  text-align: center;
+}
+
+#howtoModal .modal-content button {
+  margin-top: 12px;
+  padding: 6px 14px;
+  font-size: 1rem;
+  background-color: #ff9900; /* オレンジ */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+  </style>
+</head>
+<body>
+  <h2>かたちをつくろう　さんかくをならべよう</h2>
+
+  <div class="main-wrapper">
+    <!-- ツールボックス -->
+    <div id="toolbox">
+<!-- ツール用キャンバスを少し広げる -->
+<canvas id="toolCanvas" width="110" height="110"></canvas>
+
+      <button id="rotateBtn">↻ かいてん</button>
+      <div class="buttonspace">
+        <button id="undoBtn">ひとつもどる</button>
+        <button id="resetBtn">さいしょから</button>
+      </div>
+      <button id="howtoBtn">あそびかた</button>
+
+    </div>
+
+    <!-- メインキャンバス -->
+    <canvas id="mainCanvas" width="700" height="560"></canvas>
+    <div id="rightspace">
+  <img src="sankaku.png" alt="さんかく" width="120" style="margin-top: 230px;">
+</div>
+
+  </div>
+
+  <footer>
+    まなろっとスタジオ　がくしゅうアプリ
+  </footer>
+
+<div id="howtoModal" class="modal">
+  <div class="modal-content">
+    <h3>あそびかた</h3>
+    <p>
+      さんかくを　かいてんさせて<br>
+      すきなばしょに　もっていこう！<br>
+      ならべて　いろいろな　かたちを　つくろう
+    </p>
+    <button id="closeHowtoBtn">とじる</button>
+  </div>
+</div>
+
+  <script src="https://unpkg.com/paper"></script>
+  <script>
+    paper.install(window);
+
+    let triangleDirection = 0;
+    let isDragging = false;
+    let ghostTriangle = null; // 仮三角形
+    const gridPoints = [];
+    let placedTriangles = [];
+
+
+    // --- 左側ツール用キャンバス ---
+    const toolScope = new paper.PaperScope();
+    toolScope.setup('toolCanvas');
+
+    let toolTriangle = null;
+
+function drawToolTriangle() {
+    
+  if (toolTriangle) toolTriangle.remove();
+
+  const size = 70;
+
+  const corners = [
+    new toolScope.Point(20, 20),    // 左上
+    new toolScope.Point(90, 20),   // 右上
+    new toolScope.Point(90, 90),   // 左下
+    new toolScope.Point(20, 90)   // 右下
+  ];
+
+  const base = corners[triangleDirection];
+
+  const triangle = new toolScope.Path();
+  triangle.closed = true;
+  triangle.fillColor = '#ffcc66';
+
+  triangle.add(base);
+
+  if (triangleDirection === 0) { // 左上
+    triangle.add(base.add([size, 0]));
+    triangle.add(base.add([0, size]));
+  } else if (triangleDirection === 1) { // 右上
+    triangle.add(base.add([-size, 0]));
+    triangle.add(base.add([0, size]));
+  } else if (triangleDirection === 2) { // 左下 ✅ 修正！
+    triangle.add(base.add([-size, 0]));
+    triangle.add(base.add([0, -size]));
+  } else if (triangleDirection === 3) { // 右下 ✅ 修正！
+    triangle.add(base.add([size, 0]));
+    triangle.add(base.add([0, -size]));
+  }
+
+  toolTriangle = triangle;
+  toolScope.view.draw();
+}
+
+    drawToolTriangle();
+
+document.getElementById("rotateBtn").onclick = function () {
+  toolScope.activate();
+  triangleDirection = (triangleDirection + 1) % 4;
+  drawToolTriangle(); // 変化したdirectionに基づき再描画
+  paper.activate();
+};
+
+document.getElementById("toolCanvas").addEventListener("mousedown", (e) => {
+  e.preventDefault();
+  isDragging = true;
+});
+
+document.getElementById("toolCanvas").addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  isDragging = true;
+});
+
+    // --- メインキャンバス ---
+    window.onload = function () {
+      paper.setup('mainCanvas');
+
+      const gridSize = 70;
+
+      // グリッド点描画
+      for (let x = 70; x <= 630; x += gridSize) {
+        for (let y = 70; y <= 490; y += gridSize) {
+          const pt = new Path.Circle(new Point(x, y), 5);
+          pt.fillColor = '#66ccff';
+          gridPoints.push(pt);
+        }
+      }
+
+
+    };
+
+document.getElementById("mainCanvas").addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
+
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const point = new Point(x, y); // Paper.js座標に変換
+  drawGhostTriangle(point);
+});
+
+document.getElementById("mainCanvas").addEventListener("touchmove", (e) => {
+  if (!isDragging) return;
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  const rect = e.target.getBoundingClientRect();
+  const x = touch.clientX - rect.left;
+  const y = touch.clientY - rect.top;
+
+  const point = new Point(x, y);
+  drawGhostTriangle(point);
+});
+
+function drawGhostTriangle(centerPoint) {
+  if (ghostTriangle) ghostTriangle.remove();
+
+  const size = 70;
+  ghostTriangle = new Path();
+  ghostTriangle.closed = true;
+  ghostTriangle.strokeColor = '#ffaa00';
+  ghostTriangle.strokeWidth = 2;
+  ghostTriangle.dashArray = [10, 4]; // 破線表示
+  ghostTriangle.fillColor = new Color(1, 1, 0, 0.3); // 半透明
+
+  ghostTriangle.add(centerPoint);
+
+  if (triangleDirection === 0) {
+    ghostTriangle.add(centerPoint.add([size, 0]));
+    ghostTriangle.add(centerPoint.add([0, size]));
+  } else if (triangleDirection === 1) {
+    ghostTriangle.add(centerPoint.add([-size, 0]));
+    ghostTriangle.add(centerPoint.add([0, size]));
+  } else if (triangleDirection === 2) {
+    ghostTriangle.add(centerPoint.add([-size, 0]));
+    ghostTriangle.add(centerPoint.add([0, -size]));
+  } else if (triangleDirection === 3) {
+    ghostTriangle.add(centerPoint.add([size, 0]));
+    ghostTriangle.add(centerPoint.add([0, -size]));
+  }
+
+  view.update(); // Paper.js再描画
+}
+
+document.getElementById("mainCanvas").addEventListener("mouseup", () => {
+  if (!isDragging) return;
+  isDragging = false;
+
+  if (ghostTriangle) {
+    const snapPoint = findNearestGridPoint(ghostTriangle.segments[0].point, gridPoints);
+    if (snapPoint) {
+      placeTriangleAt(snapPoint); // 吸着して配置
+    } else {
+      placeTriangleAt(ghostTriangle.segments[0].point); // 通常通り配置
+    }
+    ghostTriangle.remove();
+    ghostTriangle = null;
+  }
+});
+
+document.getElementById("mainCanvas").addEventListener("touchend", () => {
+  if (!isDragging) return;
+  isDragging = false;
+
+  if (ghostTriangle) {
+    const snapPoint = findNearestGridPoint(ghostTriangle.segments[0].point, gridPoints);
+    if (snapPoint) {
+      placeTriangleAt(snapPoint);
+    } else {
+      placeTriangleAt(ghostTriangle.segments[0].point);
+    }
+    ghostTriangle.remove();
+    ghostTriangle = null;
+  }
+});
+
+function findNearestGridPoint(point, gridPoints, threshold = 35) {
+  let nearest = null;
+  let minDist = threshold;
+  for (const pt of gridPoints) {
+    const dist = pt.position.getDistance(point);
+    if (dist < minDist) {
+      nearest = pt.position;
+      minDist = dist;
+    }
+  }
+  return nearest;
+}
+
+function placeTriangleAt(base) {
+  const triangle = new Path();
+  triangle.closed = true;
+  triangle.fillColor = '#ffcc66';
+
+  triangle.add(base);
+
+  const size = 70;
+  if (triangleDirection === 0) {
+    triangle.add(base.add([size, 0]));
+    triangle.add(base.add([0, size]));
+  } else if (triangleDirection === 1) {
+    triangle.add(base.add([-size, 0]));
+    triangle.add(base.add([0, size]));
+  } else if (triangleDirection === 2) {
+    triangle.add(base.add([-size, 0]));
+    triangle.add(base.add([0, -size]));
+  } else if (triangleDirection === 3) {
+    triangle.add(base.add([size, 0]));
+    triangle.add(base.add([0, -size]));
+  }
+
+  placedTriangles.push(triangle);
+
+}
+
+// ひとつもどるボタン
+document.getElementById("undoBtn").addEventListener("click", () => {
+  if (placedTriangles.length > 0) {
+    const last = placedTriangles.pop();
+    last.remove();  // Paper.jsの図形を削除
+  }
+});
+
+// さいしょからボタン
+document.getElementById("resetBtn").addEventListener("click", () => {
+  while (placedTriangles.length > 0) {
+    const tri = placedTriangles.pop();
+    tri.remove();
+  }
+});
+
+document.getElementById("howtoBtn").addEventListener("click", () => {
+  document.getElementById("howtoModal").style.display = "block";
+});
+
+document.getElementById("closeHowtoBtn").addEventListener("click", () => {
+  document.getElementById("howtoModal").style.display = "none";
+});
+
+window.addEventListener("click", (event) => {
+  const modal = document.getElementById("howtoModal");
+  if (event.target === modal) {
+    modal.style.display = "none";
+  }
+});
+
+  </script>
+</body>
+</html>
