@@ -290,18 +290,22 @@ document.getElementById("mainCanvas").addEventListener("mousemove", (e) => {
   drawGhostTriangle(point);
 });
 
-document.getElementById("mainCanvas").addEventListener("touchmove", (e) => {
+document.addEventListener("touchmove", (e) => {
   if (!isDragging) return;
   e.preventDefault();
 
   const touch = e.touches[0];
-  const rect = e.target.getBoundingClientRect();
-  const x = touch.clientX - rect.left;
-  const y = touch.clientY - rect.top;
+  const mainCanvasRect = document.getElementById("mainCanvas").getBoundingClientRect();
+  const x = touch.clientX - mainCanvasRect.left;
+  const y = touch.clientY - mainCanvasRect.top;
 
-  const point = new Point(x, y);
-  drawGhostTriangle(point);
+  // メインキャンバス内に指があるときだけ描画する
+  if (x >= 0 && y >= 0 && x <= mainCanvasRect.width && y <= mainCanvasRect.height) {
+    const point = new Point(x, y);
+    drawGhostTriangle(point);
+  }
 });
+
 
 function drawGhostTriangle(centerPoint) {
   if (ghostTriangle) ghostTriangle.remove();
@@ -349,7 +353,7 @@ document.getElementById("mainCanvas").addEventListener("mouseup", () => {
   }
 });
 
-document.getElementById("mainCanvas").addEventListener("touchend", () => {
+document.addEventListener("touchend", () => {
   if (!isDragging) return;
   isDragging = false;
 
@@ -364,6 +368,7 @@ document.getElementById("mainCanvas").addEventListener("touchend", () => {
     ghostTriangle = null;
   }
 });
+
 
 function findNearestGridPoint(point, gridPoints, threshold = 35) {
   let nearest = null;
