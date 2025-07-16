@@ -370,9 +370,9 @@ document.addEventListener("touchend", () => {
 });
 
 
-function findNearestGridPoint(point, gridPoints, threshold = 35) {
+function findNearestGridPoint(point, gridPoints) {
   let nearest = null;
-  let minDist = threshold;
+  let minDist = Infinity;
   for (const pt of gridPoints) {
     const dist = pt.position.getDistance(point);
     if (dist < minDist) {
